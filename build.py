@@ -32,7 +32,6 @@ def main():
     sub_command.set_defaults(handler=handle_dep)
     sub_command = sub_parsers.add_parser('build')
     sub_command.set_defaults(handler=handle_build)
-    sub_command = sub_parsers.add_parser('setup-transparent-proxy')
     args, _ = argument_parser.parse_known_args()
     handler_args = dict(args.__dict__)
     handler_args.pop('handler')
@@ -40,7 +39,7 @@ def main():
 
 
 def handle_build():
-    pass
+    subprocess.check_call('go install github.com/taowen/function-tracer/cmd/generic-function-tracer', shell=True)
 
 
 def handle_dep():
