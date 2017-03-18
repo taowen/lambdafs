@@ -8,7 +8,7 @@ if not os.path.exists('tmp/src/github.com/taowen'):
 
 os.environ['GOBIN'] = os.path.abspath('output')
 os.environ['GOPATH'] = os.path.abspath('tmp')
-WORK_DIR = os.path.abspath('tmp/src/github.com/taowen/function-tracer')
+WORK_DIR = os.path.abspath('tmp/src/github.com/taowen/lambdafs')
 
 if not os.path.exists(WORK_DIR):
     os.chdir(os.path.dirname(WORK_DIR))
@@ -17,7 +17,7 @@ if not os.path.exists(WORK_DIR):
     except:
         pass
     try:
-        os.symlink('../../../../', 'function-tracer')
+        os.symlink('../../../../', 'lambdafs')
     except:
         pass
 
@@ -39,7 +39,7 @@ def main():
 
 
 def handle_build():
-    subprocess.check_call('go install github.com/taowen/function-tracer/cmd/generic-function-tracer', shell=True)
+    subprocess.check_call('go install github.com/taowen/lambdafs/cmd/lambdafs', shell=True)
 
 
 def handle_dep():
