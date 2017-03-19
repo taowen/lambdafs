@@ -7,7 +7,6 @@ import (
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"time"
 	"io/ioutil"
-	"github.com/taowen/lambdafs/infra"
 	"os"
 )
 
