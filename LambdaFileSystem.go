@@ -68,9 +68,12 @@ func (fs *LambdaFileSystem) StatFs(name string) *fuse.StatfsOut {
 }
 
 func (fs *LambdaFileSystem) OnMount(nodeFs *pathfs.PathNodeFs) {
+	fs.Delegate.OnMount(nodeFs)
 }
 
-func (fs *LambdaFileSystem) OnUnmount() {}
+func (fs *LambdaFileSystem) OnUnmount() {
+	fs.Delegate.OnUnmount()
+}
 
 func (fs *LambdaFileSystem) GetPath(relPath string) string {
 	return filepath.Join(fs.RootDir, relPath)
