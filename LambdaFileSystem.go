@@ -37,12 +37,12 @@ func (fs *LambdaFileSystem) BeforeFileAccess(action string, path string) {
 	if hasBeenUpdated && !fileInfo.ModTime().After(updatedAt) {
 		return
 	}
-	if infra.ShouldLogDebug() {
-		infra.LogDebug("about to update file", "reason", action, "path", path)
+	if ShouldLogDebug() {
+		LogDebug("about to update file", "reason", action, "path", path)
 	}
 	content, err := fs.UpdateFile(filepath.Join(fs.RoDir, path))
 	if err != nil {
-		infra.LogError("failed to update file", "path", path, "err", err)
+		LogError("failed to update file", "path", path, "err", err)
 		return
 	}
 	if content == nil {
@@ -54,10 +54,10 @@ func (fs *LambdaFileSystem) BeforeFileAccess(action string, path string) {
 	os.MkdirAll(rwPathDir, 0755) // if dir exists, the error is ignored
 	err = ioutil.WriteFile(rwPath, content, 0644)
 	if err != nil {
-		infra.LogError("failed to write updated file", "path", path, "err", err)
+		LogError("failed to write updated file", "path", path, "err", err)
 		return
-	} else if infra.ShouldLogDebug() {
-		infra.LogDebug("updated file", "path", path)
+	} else if ShouldLogDebug() {
+		LogDebug("updated file", "path", path)
 		fs.FileUpdatedAt[path] = time.Now()
 	}
 }
