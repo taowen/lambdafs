@@ -28,6 +28,8 @@ func (fs *LambdaFileSystem) BeforeFileAccess(action string, path string) {
 	roPath := filepath.Join(fs.RoDir, path)
 	fileInfo, err := os.Stat(roPath)
 	if err != nil {
+		// if file deleted from ro, it should not present in rw
+		os.Remove(filepath.Join(fs.RwDir, path))
 		return
 	}
 	if fileInfo.IsDir() {
