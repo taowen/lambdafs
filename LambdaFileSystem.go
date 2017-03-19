@@ -50,7 +50,10 @@ func (fs *LambdaFileSystem) BeforeFileAccess(action string, path string) {
 		fs.FileUpdatedAt[path] = time.Now()
 		return
 	}
-	err = ioutil.WriteFile(filepath.Join(fs.RwDir, path), content, 0666)
+	rwPath := filepath.Join(fs.RwDir, path)
+	rwPathDir := filepath.Dir(rwPath)
+	os.MkdirAll(rwPathDir, 0755) // if dir exists, the error is ignored
+	err = ioutil.WriteFile(rwPath, content, 0644)
 	if err != nil {
 		infra.LogError("failed to write updated file", "path", path, "err", err)
 		return
