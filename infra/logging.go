@@ -28,10 +28,13 @@ func init() {
 	}
 }
 
+func SetLogHandler(newHandler func(level int, levelName string, event string, kv []interface{})) {
+	logHandler = newHandler
+}
+
 func ShouldLogDebug() bool {
 	return LOG_LEVEL <= LEVEL_DEBUG
 }
-
 
 func ShouldLogTrace() bool {
 	return LOG_LEVEL <= LEVEL_TRACE
@@ -65,8 +68,4 @@ func LogTrace(event string, kv ...interface{}) {
 	if ShouldLogTrace() {
 		logHandler(LEVEL_TRACE, "TRACE", event, kv)
 	}
-}
-
-func Go(f func()) {
-	f()
 }

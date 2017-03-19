@@ -1,4 +1,4 @@
-package logic
+package lambdafs
 
 import (
 	"github.com/hanwen/go-fuse/fuse/pathfs"
@@ -25,7 +25,6 @@ func (fs *LambdaFileSystem) BeforeFileAccess(action string, path string) {
 		return
 	}
 	updatedAt, hasBeenUpdated := fs.FileUpdatedAt[path]
-	shouldUpdate := true
 	roPath := filepath.Join(fs.RoDir, path)
 	fileInfo, err := os.Stat(roPath)
 	if err != nil {
@@ -37,23 +36,25 @@ func (fs *LambdaFileSystem) BeforeFileAccess(action string, path string) {
 	if hasBeenUpdated && !fileInfo.ModTime().After(updatedAt) {
 		return
 	}
-	if shouldUpdate {
-		if infra.ShouldLogDebug() {
-			infra.LogDebug("about to update file", "reason", action, "path", path)
-		}
-		content, err := fs.UpdateFile(filepath.Join(fs.RoDir, path))
-		if err != nil {
-			infra.LogError("failed to update file", "path", path, "err", err)
-			return
-		}
-		err = ioutil.WriteFile(filepath.Join(fs.RwDir, path), content, 0666)
-		if err != nil {
-			infra.LogError("failed to write updated file", "path", path, "err", err)
-			return
-		} else if infra.ShouldLogDebug() {
-			infra.LogDebug("updated file", "path", path)
-			fs.FileUpdatedAt[path] = time.Now()
-		}
+	if infra.ShouldLogDebug() {
+		infra.LogDebug("about to update file", "reason", action, "path", path)
+	}
+	content, err := fs.UpdateFile(filepath.Join(fs.RoDir, path))
+	if err != nil {
+		infra.LogError("failed to update file", "path", path, "err", err)
+		return
+	}
+	if content == nil {
+		fs.FileUpdatedAt[path] = time.Now()
+		return
+	}
+	err = ioutil.WriteFile(filepath.Join(fs.RwDir, path), content, 0666)
+	if err != nil {
+		infra.LogError("failed to write updated file", "path", path, "err", err)
+		return
+	} else if infra.ShouldLogDebug() {
+		infra.LogDebug("updated file", "path", path)
+		fs.FileUpdatedAt[path] = time.Now()
 	}
 }
 

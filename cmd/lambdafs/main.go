@@ -14,8 +14,9 @@ import (
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"github.com/hanwen/go-fuse/fuse/pathfs"
 	"github.com/hanwen/go-fuse/unionfs"
-	"github.com/taowen/lambdafs/logic"
+	"github.com/taowen/lambdafs"
 	"io/ioutil"
+	"strings"
 )
 
 func main() {
@@ -42,29 +43,32 @@ func main() {
 		DeletionDirName:  *deldirname,
 	}
 
-	ufs, err := unionfs.NewUnionFsFromRoots(flag.Args()[1:], &ufsOptions, true)
+	ufs, err := unionfs.NewUnionFsFromRoots(flag.Args()[1:], &ufsOptions, false)
 	if err != nil {
 		log.Fatal("Cannot create UnionFs", err)
 		os.Exit(1)
 	}
 	rootDir := flag.Arg(0)
 	rwDir := flag.Arg(1)
-	lambdafs := &logic.LambdaFileSystem{
+	lambdafs_ := &lambdafs.LambdaFileSystem{
 		RootDir: rootDir,
 		RwDir: rwDir,
 		RoDir: flag.Arg(2),
 		Delegate: ufs,
 		FileUpdatedAt: map[string]time.Time{},
 		UpdateFile: func(filePath string) ([]byte, error) {
+			if !strings.HasSuffix(filePath, ".php") {
+				return nil, nil
+			}
 			content, err := ioutil.ReadFile(filePath)
 			if err != nil {
 				return nil, err
 			}
-			content = append(content, []byte("\nhello")...)
+			content = append(content, []byte("\nhello\n")...)
 			return content, nil
 		},
 	}
-	nodeFs := pathfs.NewPathNodeFs(lambdafs, &pathfs.PathNodeFsOptions{ClientInodes: true})
+	nodeFs := pathfs.NewPathNodeFs(lambdafs_, &pathfs.PathNodeFsOptions{ClientInodes: true})
 	mOpts := nodefs.Options{
 		EntryTimeout:    time.Duration(*entry_ttl * float64(time.Second)),
 		AttrTimeout:     time.Duration(*entry_ttl * float64(time.Second)),
