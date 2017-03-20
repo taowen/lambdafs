@@ -10,7 +10,6 @@ import (
 	"os"
 	"sync"
 	"github.com/hanwen/go-fuse/unionfs"
-	"flag"
 )
 
 type LambdaFileSystem struct {
@@ -23,7 +22,10 @@ type LambdaFileSystem struct {
 }
 
 func NewLambdaFileSystem(tempDir string, origDir string, opts *unionfs.UnionFsOptions) (*LambdaFileSystem, error) {
-	ufs, err := unionfs.NewUnionFsFromRoots(flag.Args()[1:], opts, false)
+	ufs, err := unionfs.NewUnionFsFromRoots([]string{
+		tempDir/*rw*/,
+		origDir/*ro*/,
+	}, opts, false)
 	if err != nil {
 		LogError("failed to create unionfs", "err", err)
 		return nil, err
