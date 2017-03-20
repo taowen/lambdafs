@@ -39,7 +39,7 @@ def main():
 
 
 def handle_build():
-    subprocess.check_call('go install github.com/taowen/lambdafs/cmd/lambdafs', shell=True)
+    subprocess.check_call('go install github.com/taowen/lambdafs/cmd/example-lambdafs', shell=True)
 
 
 def handle_dep():

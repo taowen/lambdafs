@@ -37,36 +37,28 @@ func main() {
 		os.Exit(2)
 	}
 
-	ufsOptions := unionfs.UnionFsOptions{
+	ufsOptions := &unionfs.UnionFsOptions{
 		DeletionCacheTTL: time.Duration(*delcache_ttl * float64(time.Second)),
 		BranchCacheTTL:   time.Duration(*branchcache_ttl * float64(time.Second)),
 		DeletionDirName:  *deldirname,
 	}
-
-	ufs, err := unionfs.NewUnionFsFromRoots(flag.Args()[1:], &ufsOptions, false)
-	if err != nil {
-		log.Fatal("Cannot create UnionFs", err)
-		os.Exit(1)
-	}
 	rootDir := flag.Arg(0)
 	rwDir := flag.Arg(1)
-	lambdafs_ := &lambdafs.LambdaFileSystem{
-		RootDir: rootDir,
-		RwDir: rwDir,
-		RoDir: flag.Arg(2),
-		Delegate: ufs,
-		FileUpdatedAt: map[string]time.Time{},
-		UpdateFile: func(filePath string) ([]byte, error) {
-			if !strings.HasSuffix(filePath, ".php") {
-				return nil, nil
-			}
-			content, err := ioutil.ReadFile(filePath)
-			if err != nil {
-				return nil, err
-			}
-			content = append(content, []byte("\nhello\n")...)
-			return content, nil
-		},
+	lambdafs_, err := lambdafs.NewLambdaFileSystem(rwDir, flag.Arg(2), ufsOptions)
+	if err != nil {
+		lambdafs.LogError("create lambdafs failed", "err", err)
+		os.Exit(1)
+	}
+	lambdafs_.UpdateFile = func(filePath string) ([]byte, error) {
+		if !strings.HasSuffix(filePath, ".php") {
+			return nil, nil
+		}
+		content, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			return nil, err
+		}
+		content = append(content, []byte("\nhello\n")...)
+		return content, nil
 	}
 	nodeFs := pathfs.NewPathNodeFs(lambdafs_, &pathfs.PathNodeFsOptions{ClientInodes: true})
 	mOpts := nodefs.Options{
