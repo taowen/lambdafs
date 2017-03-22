@@ -6,10 +6,9 @@ import (
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"time"
-	"io/ioutil"
 	"os"
-	"sync"
 	"github.com/hanwen/go-fuse/unionfs"
+	"io/ioutil"
 )
 
 type LambdaFileSystem struct {
@@ -17,8 +16,6 @@ type LambdaFileSystem struct {
 	tempDir           string
 	origDir           string
 	delegate          pathfs.FileSystem
-	fileUpdatedAt     map[string]time.Time
-	fileUpdatedAtLock *sync.Mutex
 }
 
 func NewLambdaFileSystem(tempDir string, origDir string, opts *unionfs.UnionFsOptions) (*LambdaFileSystem, error) {
@@ -34,8 +31,6 @@ func NewLambdaFileSystem(tempDir string, origDir string, opts *unionfs.UnionFsOp
 		tempDir: tempDir,
 		origDir: origDir,
 		delegate: ufs,
-		fileUpdatedAt: map[string]time.Time{},
-		fileUpdatedAtLock: &sync.Mutex{},
 	}
 	return lambdafs_, nil
 }
@@ -44,44 +39,67 @@ func (fs *LambdaFileSystem) beforeFileAccess(action string, path string) {
 	if fs.UpdateFile == nil {
 		return
 	}
-	fs.fileUpdatedAtLock.Lock()
-	defer fs.fileUpdatedAtLock.Unlock()
-	updatedAt, hasBeenUpdated := fs.fileUpdatedAt[path]
+	rwPath := filepath.Join(fs.tempDir, path)
 	roPath := filepath.Join(fs.origDir, path)
+	rwFileInfo, err := os.Stat(rwPath)
+	rwPathExists := true
+	if err != nil {
+		rwPathExists = false
+	}
 	fileInfo, err := os.Stat(roPath)
 	if err != nil {
-		// if file deleted from ro, it should not present in rw
-		os.Remove(filepath.Join(fs.tempDir, path))
+		if rwPathExists {
+			// if file deleted from ro, it should not present in rw
+			os.Remove(rwPath)
+			LogInfo("deleted file", "path", path)
+		}
 		return
 	}
 	if fileInfo.IsDir() {
+		if !rwPathExists {
+			if ShouldLogDebug() {
+				LogDebug("create dir in rw", "reason", action, "rw_path", rwPath)
+			}
+			os.MkdirAll(rwPath, 0755) // ensure directory is created
+			//os.OpenFile(filepath.Join(rwPath, ".lambdafs-placeholder"), os.O_CREATE | os.O_RDWR, 0644)
+		}
+		if ShouldLogDebug() {
+			LogDebug("skip dir", "path", path)
+		}
 		return
 	}
-	if hasBeenUpdated && !fileInfo.ModTime().After(updatedAt) {
+	if rwPathExists && !fileInfo.ModTime().After(rwFileInfo.ModTime()) {
+		if ShouldLogTrace() {
+			LogTrace("file is not modified, skip", "reason", action, "path", path)
+		}
 		return
 	}
 	if ShouldLogDebug() {
 		LogDebug("about to update file", "reason", action, "path", path)
 	}
-	content, err := fs.UpdateFile(filepath.Join(fs.origDir, path))
+	content, err := fs.UpdateFile(roPath)
 	if err != nil {
 		LogError("failed to update file", "path", path, "err", err)
 		return
 	}
 	if content == nil {
-		fs.fileUpdatedAt[path] = time.Now()
 		return
 	}
-	rwPath := filepath.Join(fs.tempDir, path)
 	rwPathDir := filepath.Dir(rwPath)
-	os.MkdirAll(rwPathDir, 0755) // if dir exists, the error is ignored
-	err = ioutil.WriteFile(rwPath, content, 0644)
-	if err != nil {
-		LogError("failed to write updated file", "path", path, "err", err)
+	err = os.MkdirAll(rwPathDir, 0755) // if dir exists, the error is ignored
+	_, err2 := os.Stat(rwPathDir)
+	if err2 != nil {
+		LogError("failed to create rw path dir", "rw_path", rwPath, "err", err)
 		return
-	} else if ShouldLogDebug() {
-		LogDebug("updated file", "path", path)
-		fs.fileUpdatedAt[path] = time.Now()
+	}
+	err = ioutil.WriteFile(rwPath, content, 06444)
+	if err != nil {
+		LogError("failed to write rw file", "rw_path", rwPath, "err", err)
+		return
+	}
+	if ShouldLogDebug() {
+		os.Chtimes(rwPath, time.Now(), fileInfo.ModTime())
+		LogDebug("updated file", "rw_path", rwPath)
 	}
 }
 
@@ -104,6 +122,7 @@ func (fs *LambdaFileSystem) GetAttr(name string, context *fuse.Context) (a *fuse
 }
 
 func (fs *LambdaFileSystem) OpenDir(name string, context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
+	fs.beforeFileAccess("OpenDir", name)
 	return fs.delegate.OpenDir(name, context)
 }
 

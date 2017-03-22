@@ -20,7 +20,20 @@ import (
 )
 
 func main() {
-	debug := flag.Bool("debug", false, "debug on")
+	lambdafs.SetLogHandler(func(level int, levelName string, event string, kv []interface{}) {
+		file := os.Stdout
+		file.WriteString(fmt.Sprintf("[%s] %s\n", levelName, event))
+		for i := 0; i < len(kv); i = i + 2 {
+			file.WriteString("\t")
+			file.WriteString(fmt.Sprintf("%v", kv[i]))
+			file.WriteString(": ")
+			file.WriteString(fmt.Sprintf("%v", kv[i + 1]))
+			file.WriteString("\n")
+		}
+		file.Sync()
+	})
+	lambdafs.LOG_LEVEL = lambdafs.LEVEL_DEBUG
+	//debug := flag.Bool("debug", false, "debug on")
 	portable := flag.Bool("portable", false, "use 32 bit inodes")
 
 	entry_ttl := flag.Float64("entry_ttl", 1.0, "fuse entry cache TTL.")
@@ -66,7 +79,7 @@ func main() {
 		AttrTimeout:     time.Duration(*entry_ttl * float64(time.Second)),
 		NegativeTimeout: time.Duration(*negative_ttl * float64(time.Second)),
 		PortableInodes:  *portable,
-		Debug:           *debug,
+		Debug:           true,
 	}
 	mountState, _, err := nodefs.MountRoot(rootDir, nodeFs.Root(), &mOpts)
 	if err != nil {
